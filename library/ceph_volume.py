@@ -178,8 +178,9 @@ def container_exec(binary, container_image):
     '''
     Build the docker CLI to run a command inside a container
     '''
-
-    command_exec = ['docker', 'run', '--rm', '--privileged', '--net=host',
+    container_binary = os.getenv('CEPH_CONTAINER_BINARY')
+    command_exec = [container_binary, 'run',
+                    '--rm', '--privileged', '--net=host',
                     '-v', '/run/lock/lvm:/run/lock/lvm:z',
                     '-v', '/dev:/dev', '-v', '/etc/ceph:/etc/ceph:z',
                     '-v', '/run/lvm/lvmetad.socket:/run/lvm/lvmetad.socket',
@@ -580,8 +581,8 @@ def run_module():
         except ValueError:
             result = dict(
                 cmd=cmd,
-                stdout=out.rstrip(b"\r\n"),
-                stderr=err.rstrip(b"\r\n"),
+                stdout=out.rstrip('\r\n'),
+                stderr=err.rstrip('\r\n'),
                 rc=rc,
                 changed=changed,
             )
@@ -610,8 +611,8 @@ def run_module():
         end=str(endd),
         delta=str(delta),
         rc=rc,
-        stdout=out.rstrip(b'\r\n'),
-        stderr=err.rstrip(b'\r\n'),
+        stdout=out.rstrip('\r\n'),
+        stderr=err.rstrip('\r\n'),
         changed=changed,
     )
 

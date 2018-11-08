@@ -50,6 +50,26 @@
       tags:
         - always
 
+    - name: check if podman binary is present
+      stat:
+        path: /usr/bin/podman
+      register: podman_binary
+      tags:
+        - always
+
+    - name: set_fact is_podman
+      set_fact:
+        is_podman: "{{ podman_binary.stat.exists }}"
+      when: is_atomic
+      tags:
+        - always
+
+    - name: set_fact container_binary
+      set_fact:
+        container_binary: "{{ 'podman' if is_atomic and is_podman else 'docker' }}"
+      tags:
+        - always
+
     - import_role:
         name: ceph-defaults
         private: false
@@ -74,7 +94,7 @@
 
     # post-tasks for upcoming import -
     - name: "pull {{ ceph_docker_image }} image"
-      command: "docker pull {{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }}"
+      command: "{{ container_binary }} pull {{ ceph_docker_registry}}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }}"
       changed_when: false
       when:
         - is_atomic
