@@ -1,0 +1,51 @@
+---
+- name: set_fact docker_exec_set_pg_num
+  set_fact:
+    docker_exec_set_pg_num: "{% if containerized_deployment %}docker run --rm --name=get_osd_pool_default_pg_num -v /etc/ceph:/etc/ceph -v /var/lib/ceph:/var/lib/ceph -v /var/run/ceph:/var/run/ceph --net=host --entrypoint=ceph {{ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }}{% else %}ceph{% endif %}"
+
+- name: get ceph socket list
+  command: ls -1 /var/run/ceph
+  register: ceph_socket_list
+  failed_when: false
+  when:
+    - ceph_current_status.fsid is defined
+
+- name: try to get fsid from ceph sockets found
+  command: "{{ docker_exec_set_pg_num }} --admin-daemon /var/run/ceph/{{ item }} config get fsid"
+  ignore_errors: true
+  register: ceph_socket_list_fsid
+  with_items:
+    - "{{ ceph_socket_list.stdout_lines }}"
+  when:
+    - ceph_socket_list.rc == 0
+
+- name: pick up a valid ceph socket
+  set_fact:
+    valid_ceph_socket: "/var/run/ceph/{{ item.item }}"
+  with_items:
+    - "{{ ceph_socket_list_fsid.results }}"
+  when:
+    - (item.stdout | from_json).fsid == fsid
+
+- name: get default value for osd_pool_default_pg_num
+  command: "{{ docker_exec_set_pg_num }} --admin-daemon {{ valid_ceph_socket }} config get osd_pool_default_pg_num"
+  failed_when: false
+  changed_when: false
+  run_once: true
+  register: default_pool_default_pg_num
+  when:
+    - ceph_conf_overrides.get('global', {}).get('osd_pool_default_pg_num', False) == False
+    - ceph_current_status.fsid is defined
+    - valid_ceph_socket is defined
+
+- name: set_fact osd_pool_default_pg_num with default_pool_default_pg_num.stdout
+  set_fact:
+    osd_pool_default_pg_num: "{{ (default_pool_default_pg_num.stdout | from_json).osd_pool_default_pg_num }}"
+  when:
+    - default_pool_default_pg_num.get('rc') == 0
+
+- name: set_fact osd_pool_default_pg_num ceph_conf_overrides.global.osd_pool_default_pg_num
+  set_fact:
+    osd_pool_default_pg_num: "{{ ceph_conf_overrides.global.osd_pool_default_pg_num }}"
+  when:
+    - ceph_conf_overrides.get('global', {}).get('osd_pool_default_pg_num', False) != False

@@ -248,3 +248,8 @@
 
 - name: populate service facts
   service_facts:
+
+- name: import_tasks set_osd_pool_default_pg_num.yml
+  import_tasks: set_osd_pool_default_pg_num.yml
+  when:
+    - ceph_current_status.fsid is defined
