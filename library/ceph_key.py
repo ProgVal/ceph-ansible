@@ -81,11 +81,6 @@ options:
             but not add them into Ceph.
         required: false
         default: True
-    auid:
-        description:
-            - Sets the auid (authenticated user id) for the specified keyring
-        required: false
-        default: None
     dest:
         description:
             - Destination to write the keyring
@@ -116,7 +111,6 @@ caps:
     name: client.admin
     state: present
     secret: AQAin8tU2DsKFBAAFIAzVTzkL3+gtAjjpQiomw==
-    auid: 0
     caps:
       mon: allow *
       osd: allow *
@@ -315,9 +309,7 @@ def generate_ceph_authtool_cmd(cluster, name, secret, caps, dest, container_imag
         secret,
     ]
 
-    if auid:
-        cmd.extend(['--set-uid', auid])
-
+    cmd.extend(base_cmd)
     cmd = generate_caps(cmd, "ceph-authtool", caps)
 
     return cmd
@@ -341,7 +333,7 @@ def create_key(module, result, cluster, name, secret, caps, import_key, dest, co
         secret = generate_secret()
 
     cmd_list.append(generate_ceph_authtool_cmd(
-        cluster, name, secret, caps, auid, dest, containerized))
+        cluster, name, secret, caps, dest, container_image))
 
     if import_key:
         user = "client.admin"
@@ -507,7 +499,6 @@ def run_module():
         caps=dict(type='dict', required=False, default=None),
         secret=dict(type='str', required=False, default=None),
         import_key=dict(type='bool', required=False, default=True),
-        auid=dict(type='str', required=False, default=None),
         dest=dict(type='str', required=False, default='/etc/ceph/'),
     )
 
@@ -524,7 +515,6 @@ def run_module():
     caps = module.params.get('caps')
     secret = module.params.get('secret')
     import_key = module.params.get('import_key')
-    auid = module.params.get('auid')
     dest = module.params.get('dest')
 
     result = dict(
@@ -571,7 +561,7 @@ def run_module():
                 module.exit_json(**result)
 
         rc, cmd, out, err = exec_commands(module, create_key(
-            module, result, cluster, name, secret, caps, import_key, auid, dest, containerized))  # noqa E501
+            module, result, cluster, name, secret, caps, import_key, dest, container_image))  # noqa E501
 
         file_path = os.path.join(
             dest + "/" + cluster + "." + name + ".keyring")
