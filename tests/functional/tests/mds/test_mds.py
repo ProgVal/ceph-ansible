@@ -22,7 +22,11 @@ class TestMDSs(object):
     def test_mds_is_up(self, node, host):
         hostname = node["vars"]["inventory_hostname"]
         if node['docker']:
-            docker_exec_cmd = 'docker exec ceph-mds-{hostname}'.format(hostname=hostname)
+            container_binary = 'docker'
+            if host.exists('podman'):
+                container_binary = 'podman'
+            docker_exec_cmd = '{container_binary} exec ceph-mds-{hostname}'.format(
+                hostname=hostname, container_binary=container_binary)
         else:
             docker_exec_cmd = ''
 
